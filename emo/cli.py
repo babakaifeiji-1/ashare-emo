@@ -255,7 +255,8 @@ def cmd_web(args):
     from .signals import Config
     from .web import serve
     cfg = Config(stop=args.stop, top_sectors=args.top_sectors, seal_core_min=args.core_min)
-    serve(args.host, args.port, args.interval, cfg, auto_jobs=not args.no_auto)
+    serve(args.host, args.port, args.interval, cfg, auto_jobs=not args.no_auto,
+          open_browser=args.open)
 
 
 def cmd_pos(args):
@@ -298,6 +299,7 @@ def main(argv=None):
     sp.add_argument("--top-sectors", type=int, default=6, help="视为主线的板块数")
     sp.add_argument("--core-min", type=float, default=65, help="新封板买点最低封板分")
     sp.add_argument("--no-auto", action="store_true", help="不自动跑收盘后日报/collect")
+    sp.add_argument("--open", action="store_true", help="启动后自动打开浏览器")
     sp.set_defaults(fn=cmd_web)
     sp = sub.add_parser("pos", help="持仓管理")
     sp.add_argument("op", choices=["add", "rm", "ls"])

@@ -24,6 +24,14 @@ python3 -m venv .venv          # 需要 Python 3.9+ (用到 zoneinfo)
 买卖信号浏览器提示音, 网页上增删持仓, 15:05 自动生成日报, 15:35 自动 collect, 网页里可查看历史报告.
 非交易时间启动会显示最近一个交易日的数据. 下面的命令行子命令仍然可用.
 
+### Windows
+
+1. 安装 Python 3.9+ (https://www.python.org/downloads/ , 安装时勾选 "Add python.exe to PATH")
+2. 下载代码: `git clone https://github.com/babakaifeiji-1/ashare-emo.git`, 或在 GitHub 页面 Code → Download ZIP 后解压
+3. 双击 `start.bat`: 首次自动安装依赖, 之后自动打开浏览器. 关闭黑色命令行窗口即停止
+
+命令行子命令在 Windows 上把 `.venv/bin/python` 换成 `.venv\Scripts\python`, 例如 `.venv\Scripts\python -m emo.cli today`.
+
 ## 命令行用法
 
 ```bash

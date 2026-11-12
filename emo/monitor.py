@@ -251,7 +251,7 @@ class Monitor:
                 r = self.tick()
                 screen = self.render(r)
                 if not once and sys.stdout.isatty():
-                    os.system("clear")
+                    os.system("cls" if os.name == "nt" else "clear")
                 print(screen, flush=True)
             except Exception as e:  # noqa: BLE001 - 监控不中断
                 log.exception("本轮刷新失败: %s", e)

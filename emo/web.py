@@ -321,12 +321,16 @@ def make_handler(app: App):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000, interval: int = 20, cfg=None,
-          auto_jobs: bool = True):
+          auto_jobs: bool = True, open_browser: bool = False):
     app = App(interval=interval, cfg=cfg, auto_jobs=auto_jobs)
     threading.Thread(target=app.loop, daemon=True).start()
     srv = ThreadingHTTPServer((host, port), make_handler(app))
     shown = "127.0.0.1" if host in ("0.0.0.0", "") else host
-    print(f"A股情绪看板已启动: http://{shown}:{port}   (Ctrl+C 退出)")
+    url = f"http://{shown}:{port}"
+    print(f"A股情绪看板已启动: {url}   (Ctrl+C 退出)")
+    if open_browser:
+        import webbrowser
+        threading.Timer(1.0, webbrowser.open, args=(url,)).start()
     if host not in ("127.0.0.1", "localhost"):
         print("注意: 已监听局域网地址, 页面没有登录鉴权, 同网段的人都能访问并修改持仓.")
     print(f"盘中每 {interval}s 刷新; {REPORT_AT // 100}:{REPORT_AT % 100:02d} 自动生成日报, "
