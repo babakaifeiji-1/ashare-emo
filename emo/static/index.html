@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A股短线情绪看板</title>
+<style>
+  :root {
+    --bg: #0f1419; --card: #182029; --line: #26313d; --text: #d6dde6; --dim: #8593a3;
+    --up: #ff4d4f; --down: #2ecc71; --warn: #f5a623; --info: #3fa7ff; --accent: #c792ea;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px 20px;
+           align-items: center; padding: 10px 20px; background: #0b0f13ee; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; }
+  .pill { padding: 2px 10px; border-radius: 999px; background: var(--line); color: var(--dim); font-size: 12px; }
+  .pill.on { background: #3a1517; color: var(--up); }
+  main { padding: 16px 20px 40px; display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+            min-width: 0; overflow: auto; }
+  section h2 { font-size: 15px; margin: 0 0 10px; color: #fff; display: flex; justify-content: space-between;
+               align-items: baseline; gap: 8px; }
+  section h2 small { color: var(--dim); font-weight: normal; font-size: 12px; }
+  .s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s5 { grid-column: span 5; }
+  .s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; } .s12 { grid-column: span 12; }
+  @media (max-width: 1100px) { .s3, .s4, .s5, .s6, .s7, .s8 { grid-column: span 12; } }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 5px 6px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: normal; position: sticky; top: 0; background: var(--card); }
+  th:first-child, td:first-child, td.l, th.l { text-align: left; }
+  tr:hover td { background: #1f2a36; }
+  .up { color: var(--up); } .down { color: var(--down); } .dim { color: var(--dim); }
+  .warn { color: var(--warn); } .info { color: var(--info); }
+  .emo { display: flex; gap: 18px; align-items: center; }
+  .score { font-size: 54px; font-weight: 700; line-height: 1; }
+  .phase { display: inline-block; font-size: 20px; font-weight: 700; padding: 4px 14px; border-radius: 8px; }
+  .advice { color: var(--dim); margin-top: 10px; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .kv { background: #121a22; border-radius: 8px; padding: 8px 10px; }
+  .kv b { display: block; font-size: 18px; } .kv > span { color: var(--dim); font-size: 12px; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; background: var(--line); }
+  .tag.r { background: #3a1517; color: var(--up); } .tag.g { background: #0f2f1f; color: var(--down); }
+  .tag.y { background: #3a2c10; color: var(--warn); } .tag.b { background: #10263a; color: var(--info); }
+  .themes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .themes span { background: #2a1a1c; color: #ffb3b3; padding: 3px 10px; border-radius: 6px; }
+  .sig { display: grid; grid-template-columns: 64px 74px 1fr; gap: 6px; padding: 6px 0;
+         border-bottom: 1px solid var(--line); font-size: 13px; }
+  .sig .reason { grid-column: 3; color: var(--dim); font-size: 12px; }
+  .feed { max-height: 520px; overflow: auto; }
+  .ladders { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .ladders h3 { margin: 0 0 6px; font-size: 14px; color: #ffb3b3; }
+  form { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  input, button { background: #121a22; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+                  padding: 6px 8px; font: inherit; }
+  input { width: 92px; }
+  button { cursor: pointer; } button:hover { border-color: var(--info); }
+  button.x { padding: 0 6px; color: var(--dim); }
+  .banner { grid-column: span 12; background: #3a1517; color: #ffb3b3; padding: 8px 14px; border-radius: 8px; display: none; }
+  svg text { fill: var(--dim); font-size: 11px; }
+  a { color: var(--info); text-decoration: none; }
+  .empty { color: var(--dim); padding: 10px 0; }
+  pre { white-space: pre-wrap; font-size: 12px; max-height: 70vh; overflow: auto; background: #0b0f13; padding: 12px;
+        border-radius: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>A股短线情绪看板</h1>
+  <span id="now" class="dim"></span>
+  <span id="status" class="pill"></span>
+  <span id="updated" class="dim"></span>
+  <span style="flex:1"></span>
+  <label class="dim"><input type="checkbox" id="sound" style="width:auto" checked> 买卖信号提示音</label>
+</header>
+<main>
+  <div id="error" class="banner" role="alert"></div>
+
+  <section class="s5" aria-labelledby="h-emo">
+    <h2 id="h-emo">市场情绪 <small id="emo-cost"></small></h2>
+    <div class="emo">
+      <div><div id="score" class="score">--</div><div class="dim">情绪分 / 100</div></div>
+      <div><div id="phase" class="phase">--</div><div style="margin-top:6px">建议仓位 <b id="position">--</b></div></div>
+    </div>
+    <div id="advice" class="advice"></div>
+    <div id="indices" class="grid" style="margin-top:12px"></div>
+  </section>
+
+  <section class="s7" aria-labelledby="h-m">
+    <h2 id="h-m">情绪指标 <small>最高板 <span id="dragon"></span></small></h2>
+    <div id="metrics" class="grid"></div>
+    <div id="chart" style="margin-top:12px"></div>
+  </section>
+
+  <section class="s7" aria-labelledby="h-sec">
+    <h2 id="h-sec">最强主线 <small>强度 / 涨幅 / 主力 / 涨停数</small></h2>
+    <div id="themes" class="themes"></div>
+    <div id="sectors"></div>
+  </section>
+
+  <section class="s5" aria-labelledby="h-rot">
+    <h2 id="h-rot">板块轮动 <small>近10日行业涨停数</small></h2>
+    <div id="rotation"></div>
+    <h2 style="margin-top:14px">15分钟资金流向 <small>亿</small></h2>
+    <div id="flows"></div>
+  </section>
+
+  <section class="s12" aria-labelledby="h-lad">
+    <h2 id="h-lad">主线梯队 <small>角色: 龙头 / 先锋 / 首封 / 中军 / 补涨 / 跟风</small></h2>
+    <div id="ladders" class="ladders"></div>
+  </section>
+
+  <section class="s8" aria-labelledby="h-pk">
+    <h2 id="h-pk">涨停股综合分 <small>封板分已回测; 总分叠加主力资金与主线</small></h2>
+    <div id="picks"></div>
+  </section>
+
+  <section class="s4" aria-labelledby="h-sig">
+    <h2 id="h-sig">信号 <small>最新在上</small></h2>
+    <div id="signals" class="feed"></div>
+  </section>
+
+  <section class="s7" aria-labelledby="h-pos">
+    <h2 id="h-pos">持仓 <small>用于卖点提醒, 下一轮刷新生效</small></h2>
+    <div id="positions"></div>
+    <form id="posform">
+      <input name="code" placeholder="代码" aria-label="股票代码" pattern="\d{6}" required>
+      <input name="cost" placeholder="成本价" aria-label="成本价" type="number" step="0.001" min="0.01" required>
+      <input name="qty" placeholder="数量" aria-label="数量" type="number" step="100" min="1" required>
+      <input name="date" placeholder="买入日 YYYYMMDD" aria-label="买入日期" pattern="\d{8}" style="width:150px">
+      <button type="submit">添加 / 更新</button>
+    </form>
+  </section>
+
+  <section class="s5" aria-labelledby="h-rep">
+    <h2 id="h-rep">报告与任务 <small>15:05 自动日报, 15:35 自动 collect</small></h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button data-job="report">立即生成日报</button>
+      <button data-job="collect">立即 collect</button>
+      <span id="jobs" class="dim"></span>
+    </div>
+    <div id="reports" style="margin-top:10px"></div>
+  </section>
+
+  <section class="s12" id="viewer" style="display:none" aria-labelledby="h-view">
+    <h2 id="h-view"><span id="view-title"></span> <button class="x" id="view-close">关闭</button></h2>
+    <pre id="view-body"></pre>
+  </section>
+
+  <p class="s12 dim" style="grid-column: span 12; margin:0">本系统为量化辅助工具, 不构成投资建议. 数据来自东方财富公开接口, 有数秒延迟.</p>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (v, d = 2) => (v === null || v === undefined || Number.isNaN(+v)) ? "-" : (+v).toFixed(d);
+const sgn = (v, d = 2, suf = "") => (v === null || v === undefined) ? "-" :
+  `<span class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : ""}${(+v).toFixed(d)}${suf}</span>`;
+const pct0 = (v) => v === null || v === undefined ? "-" : Math.round(v * 100) + "%";
+
+const PHASE_COLOR = { "冰点": "#2ecc71", "退潮": "#2ecc71", "分歧": "#f5a623", "混沌": "#8593a3",
+                      "修复": "#ff8c69", "发酵": "#ff4d4f", "高潮": "#ff2d55" };
+const ACTION_TAG = { "买": "r", "卖": "g", "减仓": "g", "观察": "y", "风险": "b" };
+const ROLE_TAG = { "龙头": "r", "先锋": "r", "首封": "r", "中军": "y", "补涨": "y", "强势": "y" };
+const ROT_TAG = { "新启动": "r", "回流": "r", "加强": "r", "主升": "r", "退潮": "g" };
+
+function table(rows, cols) {
+  if (!rows || !rows.length) return '<div class="empty">暂无数据</div>';
+  const head = cols.map(c => `<th class="${c.l ? "l" : ""}">${esc(c.t)}</th>`).join("");
+  const body = rows.map(r => "<tr>" + cols.map(c => {
+    const v = c.f ? c.f(r) : esc(r[c.k]);
+    return `<td class="${c.l ? "l" : ""}">${v}</td>`;
+  }).join("") + "</tr>").join("");
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function kv(label, value) { return `<div class="kv"><b>${value}</b><span>${esc(label)}</span></div>`; }
+
+function chart(hist) {
+  if (!hist || hist.length < 2) return "";
+  const W = 720, H = 150, P = 26, n = hist.length;
+  const x = (i) => P + i * (W - 2 * P) / (n - 1);
+  const maxZt = Math.max(...hist.map(h => h.zt_n || 0), 1);
+  const bw = Math.max(3, (W - 2 * P) / n * 0.55);
+  const bars = hist.map((h, i) => {
+    const bh = (h.zt_n || 0) / maxZt * (H - 2 * P);
+    return `<rect x="${x(i) - bw / 2}" y="${H - P - bh}" width="${bw}" height="${bh}" fill="#ff4d4f33"><title>${esc(h.date)} 涨停 ${h.zt_n}</title></rect>`;
+  }).join("");
+  const y = (s) => H - P - (s / 100) * (H - 2 * P);
+  const line = hist.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.score || 0).toFixed(1)}`).join(" ");
+  const dots = hist.map((h, i) => `<circle cx="${x(i)}" cy="${y(h.score || 0)}" r="3.5" fill="${PHASE_COLOR[h.phase] || "#888"}"><title>${esc(h.date)} ${h.score} ${esc(h.phase)} 最高板 ${esc(h.dragon)}</title></circle>`).join("");
+  const step = Math.ceil(n / 8);
+  const labels = hist.map((h, i) => ((i % step === 0 && n - 1 - i >= step / 2) || i === n - 1)
+    ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${esc(String(h.date).slice(4))}</text>` : "").join("");
+  const grid = [30, 50, 70].map(s => `<line x1="${P}" x2="${W - P}" y1="${y(s)}" y2="${y(s)}" stroke="#26313d" stroke-dasharray="3 4"/><text x="4" y="${y(s) + 4}">${s}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="近${n}日情绪分与涨停数">${grid}${bars}<path d="${line}" fill="none" stroke="#c792ea" stroke-width="2"/>${dots}${labels}</svg>
+    <div class="dim" style="font-size:12px">折线 = 情绪分 (点颜色 = 阶段), 柱 = 涨停家数</div>`;
+}
+
+let lastSigKey = null;
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.15, ctx.currentTime); o.start(); o.stop(ctx.currentTime + 0.25);
+  } catch (e) { /* 浏览器未允许音频 */ }
+}
+
+function render(s) {
+  $("now").textContent = "北京时间 " + s.now;
+  $("status").textContent = s.status;
+  $("status").className = "pill" + (s.trading ? " on" : "");
+  $("updated").textContent = s.updated ? `数据更新 ${s.updated} · 每 ${s.interval}s` : "";
+  $("error").style.display = s.error ? "block" : "none";
+  $("error").textContent = s.error ? "刷新出错(会自动重试): " + s.error : "";
+
+  const L = s.live || {}, e = L.emo || {};
+  if (e.score !== undefined) {
+    $("score").textContent = num(e.score, 0);
+    $("score").style.color = PHASE_COLOR[e.phase] || "";
+    $("phase").textContent = e.phase;
+    $("phase").style.background = (PHASE_COLOR[e.phase] || "#555") + "33";
+    $("phase").style.color = PHASE_COLOR[e.phase] || "";
+    $("position").textContent = e.position;
+    $("advice").textContent = e.advice;
+    $("dragon").textContent = e.dragon || "";
+    $("emo-cost").textContent = L.cost ? `本轮耗时 ${L.cost}s` : "";
+    $("metrics").innerHTML = [
+      kv("涨停", `<span class="up">${e.zt_n}</span>`), kv("炸板", e.zb_n),
+      kv("跌停", `<span class="down">${e.dt_n}</span>`), kv("封板率", pct0(e.seal_rate)),
+      kv("最高板", e.max_lb), kv("连板数", e.lb_n), kv("晋级率", pct0(e.promote_rate)),
+      kv("昨涨停溢价", sgn(e.yzt_avg, 2, "%")), kv("昨连板溢价", sgn(e.ylb_avg, 2, "%")),
+      kv("大面", `<span class="${e.big_loss_n >= 10 ? "down" : ""}">${e.big_loss_n}</span>`),
+      kv("量能(5日)", num(e.amount_ratio) + "x"),
+    ].join("");
+  }
+  $("indices").innerHTML = (L.indices || []).map(i =>
+    kv(i.name, `${num(i.price)} ${sgn(i.pct, 2, "%")}`)).join("");
+  $("chart").innerHTML = chart(s.hist);
+
+  $("themes").innerHTML = (L.themes || []).map(t => `<span>${esc(t.theme)} ${num(t.score, 0)}</span>`).join("");
+  $("sectors").innerHTML = table(L.sectors, [
+    { t: "板块", k: "name", l: 1 }, { t: "强度", f: r => num(r.score, 1) },
+    { t: "涨幅", f: r => sgn(r.pct, 2, "%") }, { t: "日内高", f: r => sgn(r.peak, 2, "%") },
+    { t: "主力亿", f: r => sgn(r.main_net, 1) }, { t: "涨停", k: "zt_cnt" },
+    { t: "龙头", f: r => esc(r.dragon || r.lead_name), l: 1 },
+  ]);
+
+  $("rotation").innerHTML = table(L.rotation, [
+    { t: "行业", k: "industry", l: 1 },
+    { t: "状态", f: r => `<span class="tag ${ROT_TAG[r.status] || ""}">${esc(r.status)}</span>` },
+    { t: "今", k: "today" }, { t: "前3均", k: "avg3" }, { t: "峰", k: "peak" },
+    { t: "走势", f: r => `<span class="dim" style="letter-spacing:-1px">${esc(r.trend)}</span>` },
+    { t: "最高板", k: "lead", l: 1 },
+  ]);
+  const fl = (rows, cls) => (rows || []).filter(r => cls === "up" ? r.d_net > 0 : r.d_net < 0)
+    .map(r => `<span class="${cls}">${esc(r.name)} ${r.d_net > 0 ? "+" : ""}${num(r.d_net, 1)}</span>`).join(" · ");
+  const fin = fl(L.flows_in, "up"), fout = fl(L.flows_out, "down");
+  $("flows").innerHTML = (fin || fout) ? `<div>流入: ${fin || "-"}</div><div style="margin-top:4px">流出: ${fout || "-"}</div>`
+    : '<div class="empty">运行满 15 分钟后显示</div>';
+
+  $("ladders").innerHTML = (L.ladders || []).map(l => `<div><h3>${esc(l.sector)}</h3>${table(l.rows, [
+    { t: "角色", f: r => `<span class="tag ${ROLE_TAG[r.role] || ""}">${esc(r.role)}</span>`, l: 1 },
+    { t: "名称", f: r => `${esc(r.name)} <span class="dim">${esc(r.code)}</span>`, l: 1 },
+    { t: "强度", f: r => num(r.strength, 0) }, { t: "涨幅", f: r => sgn(r.pct, 2, "%") },
+    { t: "5分", f: r => sgn(r.chg5m, 1) }, { t: "主力%", f: r => sgn(r.main_ratio, 0) },
+    { t: "流通亿", f: r => num(r.float_yi, 0) },
+  ])}</div>`).join("") || '<div class="empty">暂无数据</div>';
+
+  $("picks").innerHTML = table(L.picks, [
+    { t: "名称", f: r => `${esc(r.n)} <span class="dim">${esc(r.c)}</span>`, l: 1 },
+    { t: "类型", k: "type" }, { t: "总分", f: r => `<b>${num(r.score, 1)}</b>` },
+    { t: "封板分", f: r => num(r.core, 1) }, { t: "连板", k: "lbc" },
+    { t: "首封", f: r => { const t = String(r.fbt ?? "").padStart(6, "0"); return `${t.slice(0, 2)}:${t.slice(2, 4)}`; } },
+    { t: "炸", k: "zbc" }, { t: "主力%", f: r => sgn(r.main_ratio, 0) },
+    { t: "主线", f: r => esc(r.sector || r.hybk), l: 1 }, { t: "风险", f: r => `<span class="warn">${esc(r.flags)}</span>`, l: 1 },
+  ]);
+
+  const sigs = s.signals || [];
+  $("signals").innerHTML = sigs.length ? sigs.map(g => `<div class="sig">
+      <span class="dim">${esc(g.time)}</span>
+      <span><span class="tag ${ACTION_TAG[g.action] || ""}">${esc(g.action)}</span></span>
+      <span><b>${esc(g.label)}</b> ${esc(g.name)} <span class="dim">${esc(g.code)} ${num(g.price)}</span></span>
+      <span class="reason">${esc(g.reason)}</span></div>`).join("")
+    : '<div class="empty">暂无. 首轮只建立基线, 之后新封板/回封/冲板/卖点会出现在这里</div>';
+  const top = sigs.find(g => g.action === "买" || g.action === "卖");
+  const key = top ? `${top.time}${top.code}${top.kind}` : null;
+  if (lastSigKey !== null && key && key !== lastSigKey && $("sound").checked) beep();
+  if (key) lastSigKey = key; else if (lastSigKey === null) lastSigKey = "";
+
+  $("positions").innerHTML = table(s.positions, [
+    { t: "名称", f: r => `${esc(r.name || "")} <span class="dim">${esc(r.code)}</span>`, l: 1 },
+    { t: "成本", f: r => num(r.cost) }, { t: "数量", k: "qty" }, { t: "现价", f: r => num(r.price) },
+    { t: "今日", f: r => sgn(r.pct, 2, "%") }, { t: "盈亏", f: r => sgn(r.pnl, 2, "%") },
+    { t: "主力%", f: r => sgn(r.main_ratio, 0) }, { t: "买入日", k: "buy_date" },
+    { t: "", f: r => `<button class="x" data-rm="${esc(r.code)}" aria-label="删除 ${esc(r.code)}">删除</button>` },
+  ]);
+
+  $("jobs").textContent = Object.entries(s.jobs || {}).map(([k, v]) => `${k === "report" ? "日报" : "collect"}: ${v}`).join("  ");
+  $("reports").innerHTML = (s.reports || []).map(f => `<div><a href="#" data-rep="${esc(f)}">${esc(f)}</a></div>`).join("")
+    || '<div class="empty">暂无报告</div>';
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    render(await r.json());
+  } catch (e) {
+    $("error").style.display = "block";
+    $("error").textContent = "连接后端失败: " + e;
+  }
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) alert(j.error || "失败");
+  refresh();
+  return j;
+}
+
+$("posform").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const f = new FormData(ev.target);
+  post("/api/pos", { op: "add", code: f.get("code"), cost: +f.get("cost"), qty: +f.get("qty"), date: f.get("date") })
+    .then(j => { if (j.ok) ev.target.reset(); });
+});
+document.addEventListener("click", async (ev) => {
+  const t = ev.target;
+  if (t.dataset.rm && confirm(`删除持仓 ${t.dataset.rm}?`)) post("/api/pos", { op: "rm", code: t.dataset.rm });
+  if (t.dataset.job) post("/api/job", { kind: t.dataset.job });
+  if (t.dataset.rep) {
+    ev.preventDefault();
+    const r = await fetch("/reports/" + encodeURIComponent(t.dataset.rep));
+    $("view-title").textContent = t.dataset.rep;
+    $("view-body").textContent = await r.text();
+    $("viewer").style.display = "block";
+    $("viewer").scrollIntoView({ behavior: "smooth" });
+  }
+});
+$("view-close").addEventListener("click", () => { $("viewer").style.display = "none"; });
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

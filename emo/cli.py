@@ -1,5 +1,6 @@
 """命令行入口.
 
+python -m emo.cli            # = web: 网页看板, 一条命令开启全部
 python -m emo.cli today      # 情绪 + 最强板块 + 情绪票候选 + 跟风资金票, 生成报告
 python -m emo.cli emotion    # 情绪历史
 python -m emo.cli sectors    # 只看板块强度
@@ -250,6 +251,13 @@ def cmd_watch(args):
     Monitor(cfg, interval=args.interval).run(once=args.once, force=args.force)
 
 
+def cmd_web(args):
+    from .signals import Config
+    from .web import serve
+    cfg = Config(stop=args.stop, top_sectors=args.top_sectors, seal_core_min=args.core_min)
+    serve(args.host, args.port, args.interval, cfg, auto_jobs=not args.no_auto)
+
+
 def cmd_pos(args):
     from .monitor import load_positions, pos_add, pos_rm
     if args.op == "add":
@@ -282,6 +290,15 @@ def main(argv=None):
     sp.add_argument("--once", action="store_true", help="只刷新一次(测试)")
     sp.add_argument("--force", action="store_true", help="非交易时间也运行")
     sp.set_defaults(fn=cmd_watch)
+    sp = sub.add_parser("web", help="网页看板(盘中监控+收盘自动日报/collect), 默认命令")
+    sp.add_argument("--host", default="127.0.0.1", help="监听地址, 0.0.0.0 = 局域网可访问(无鉴权)")
+    sp.add_argument("--port", type=int, default=8000)
+    sp.add_argument("--interval", type=int, default=20, help="刷新秒数")
+    sp.add_argument("--stop", type=float, default=5.0, help="止损%%")
+    sp.add_argument("--top-sectors", type=int, default=6, help="视为主线的板块数")
+    sp.add_argument("--core-min", type=float, default=65, help="新封板买点最低封板分")
+    sp.add_argument("--no-auto", action="store_true", help="不自动跑收盘后日报/collect")
+    sp.set_defaults(fn=cmd_web)
     sp = sub.add_parser("pos", help="持仓管理")
     sp.add_argument("op", choices=["add", "rm", "ls"])
     sp.add_argument("code", nargs="?", default="")
@@ -293,7 +310,7 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(levelname)s %(message)s")
     if not args.cmd:
-        args = ap.parse_args(["today"] + (argv or []))
+        args = ap.parse_args(["web"] + (argv or []))
     args.fn(args)
 
 
